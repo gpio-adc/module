@@ -1,0 +1,134 @@
+
+/****************************************************
+;http://www.stchip.com
+;OTP语音芯片串行一线串口模式组合语音测试程序
+;主芯片:MPC82L52(1T) 
+;工作频率:6MHz
+;适用型号:SC3010，SC3020，SC3040，SC3060，SC3080，SC5020，SC5040，SC5060，SC5080,SC5B01
+;亿矽特科技：400-160-3880
+****************************************************/
+
+include "REG_MPC82L52.H"
+ #include <stdio.h>
+
+
+void delay_ms(unsigned int count) ;
+void delay_us(unsigned int count);
+void SC_Speech(unsigned char spdata);
+void SC_WBusy(void);
+void SC_Speechs(void);
+
+/**************端口定义*****************/
+sbit SC_DATA=P3^1;     //P3.1是脉冲数据脚
+sbit SC_BUSY=P3^2;     //P3.2是放音BUSY脚
+
+unsigned int sp[3];    //定义一个组合语音用的数组变量
+
+/*************主程序****************/
+main (void)
+{
+  SC_DATA=1;
+  sp[0]=0X00;
+  sp[1]=0X00;
+  sp[2]=0X00;
+  while(1)
+  {
+	
+        sp[0]=0X08;  
+        sp[1]=0X05;
+        sp[2]=0X09;
+        SC_Speechs();      //组合8,5,9地址段放音
+	//delay_ms(5000);    //延时放音时间5秒
+   }
+}
+/**************************************
+;延时X毫秒
+;不同的工作环境,需要调整此函数
+;入口参数:count
+;出口参数:无
+**************************************/
+void delay_ms(unsigned int count)     
+{
+ unsigned int i,j;
+ for(i=0;i<count;i++)
+ {
+    for(j=0;j<500;j++);
+ }
+}
+/**************************************
+;延时X微秒
+;不同的工作环境,需要调整此函数
+;入口参数:count
+;出口参数:无
+**************************************/
+void delay_us(unsigned int count)
+{
+ unsigned int i,j;
+ for(i=0;i<count;i++)
+ {
+    for(j=0;j<2;j++);
+ }
+}
+/**************************************
+;控制SC30X0命令
+;入口参数:data;
+;出口参数:无
+**************************************/
+void SC_Speech(unsigned char spdata)
+{    
+     unsigned char i;   
+    
+     SC_DATA=0;
+     delay_ms(6);            
+     for(i=0;i < 8;i++)
+     {  
+        SC_DATA = 1; 
+        if(spdata&0x01)
+        {
+           delay_us(1500);  
+           SC_DATA  = 0;
+           delay_us(500);  
+        }
+        else
+        { 
+           delay_us(500);  
+           SC_DATA  = 0;
+           delay_us(1500);  
+        } 
+        spdata >>= 1;
+     } 
+      SC_DATA =1;  
+      delay_us(200); 
+}
+/**************************************
+;控制地址段组合放音
+;入口参数:无
+;出口参数:无
+**************************************/
+void SC_Speechs(void)
+{    
+    SC_Speech(sp[0]);
+    SC_WBusy();      //等待BUSY信号变高
+    SC_Speech(sp[1]);
+    SC_WBusy();
+    SC_Speech(sp[2]);
+    sp[0]=0X00;
+    sp[1]=0X00;
+    sp[2]=0X00;
+}
+
+/**************************************
+;等待BUSY信号变高；
+;入口参数:无
+;出口参数:无
+**************************************/
+void SC_WBusy(void)
+{ 
+    unsigned int times;
+    for(times=0;times<50;times++)        //等待超过5秒最长语音段自动退出；
+    {
+       delay_ms(100);                    //调节组合语音间隔
+       if(SC_BUSY==1) break;
+    }   
+ 
+}
